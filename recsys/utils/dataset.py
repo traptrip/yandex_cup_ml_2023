@@ -2,9 +2,12 @@ from pathlib import Path
 from typing import Union
 
 import torch
+import torchvision
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
+
+from .augmentations import RandomCutmix, RandomMixup
 
 
 class EmbeddingDataset(Dataset):
@@ -99,11 +102,33 @@ class EmbeddingDataset(Dataset):
 
 
 class Collator:
-    def __init__(self, stage: str = "train") -> None:
-        assert stage in ("train", "test")
+    def __init__(
+        self,
+        stage: str = "train",
+        num_labels: int = 256,
+        mix_proba: float = 0.5,
+        mixup_alpha: float = 0.0,
+        cutmix_alpha: float = 0.0,
+    ) -> None:
+        assert stage in ("train", "val", "test")
         self.stage = stage
 
+        # mixup & cutmix augmentations
+        if stage == "train":
+            mix_transforms = []
+            if mixup_alpha > 0:
+                mix_transforms.append(
+                    RandomMixup(num_labels, p=mix_proba, alpha=mixup_alpha)
+                )
+            if cutmix_alpha > 0:
+                mix_transforms.append(
+                    RandomCutmix(num_labels, p=mix_proba, alpha=cutmix_alpha)
+                )
+
+            self.mix_transform = torchvision.transforms.RandomChoice(mix_transforms)
+
     def __call__(self, batch: list[dict[str, list[Union[torch.Tensor, int]]]]):
+        # sort by seq len
         if self.stage == "train":
             batch = sorted(
                 batch, key=lambda value: len(value["features"]), reverse=True
@@ -122,6 +147,8 @@ class Collator:
         for idx, item in enumerate(batch):
             x = item["features"]
             x_len = len(x)
+
+            # add padding
             pad_left = (
                 np.random.randint(0, max_len - x_len)
                 if max_len != x_len and self.stage == "train"
@@ -129,10 +156,14 @@ class Collator:
             )
             features[idx, pad_left : pad_left + x_len, :] = x
             mask[idx, pad_left : pad_left + x_len] = 0
+
             tracks[idx] = item["track"]
 
             if has_label:
                 labels[idx] = item["label"]
+
+        if has_label and (self.stage == "train"):
+            features, labels, mask = self.mix_transform(features, labels, mask)
 
         out = {
             "features": features,

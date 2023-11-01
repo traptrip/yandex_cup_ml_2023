@@ -8,11 +8,13 @@ from tqdm.auto import tqdm
 from sklearn.metrics import average_precision_score
 
 from utils.dataset import EmbeddingDataset, Collator
-from models.transformer_encoder import Network
+
+# from models.transformer_encoder import Network
+from models.mlp import Network
 
 
 class Config:
-    weights: Path = Path("_EXPERIMENTS/train_3/weights/last.pt")
+    weights: Path = Path("_EXPERIMENTS/mlp_1/weights/best.pt")
 
     # data
     data_dir = Path("./data/")
@@ -95,12 +97,12 @@ def main():
         batch_size=cfg.batch_size,
         shuffle=False,
         num_workers=cfg.num_workers,
-        collate_fn=Collator("test"),
+        collate_fn=Collator("test", cfg.num_labels),
     )
 
     net = Network(
-        transformer_layers=cfg.transformer_layers,
-        num_heads=cfg.num_heads,
+        # transformer_layers=cfg.transformer_layers,
+        # num_heads=cfg.num_heads,
         input_dim=cfg.input_dim,
         hidden_dim=cfg.hidden_dim,
         num_labels=cfg.num_labels,
@@ -117,7 +119,7 @@ def main():
             for track, probs in zip(track_idxs, predictions)
         ]
     )
-    predictions_df.to_csv("prediction.csv", index=False)
+    predictions_df.to_csv(cfg.weights.parent / "../prediction.csv", index=False)
 
 
 if __name__ == "__main__":

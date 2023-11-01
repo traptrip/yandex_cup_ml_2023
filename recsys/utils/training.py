@@ -52,7 +52,7 @@ def train(
                 if not train_loss
                 else alpha * train_loss + (1 - alpha) * loss.item()
             )
-            train_targets.extend(targets.cpu().numpy())
+            train_targets.extend(targets.cpu().numpy() > 0.5)
             train_preds.extend(torch.sigmoid(logits.detach()).cpu().numpy())
 
             pbar.set_description(f"Epoch: {epoch} Loss: {train_loss:.6f}")

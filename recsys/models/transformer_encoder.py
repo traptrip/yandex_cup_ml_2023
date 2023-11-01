@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from .pooling import MaskedPooling
-from ..utils.nn_utils import init_weights
+from utils.nn_utils import init_weights
 
 
 class Network(nn.Module):

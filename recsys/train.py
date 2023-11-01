@@ -14,14 +14,13 @@ from models.mlp import Network
 
 """
 TODO:
-1. добавить mixup + cutmix аугментации 
 4. добавить supAP лосс
 """
 
 
 class Config:
     # logging
-    logs_dir: Path = get_exp_name(Path("_EXPERIMENTS/mlp"))
+    logs_dir: Path = get_exp_name(Path("_EXPERIMENTS/mlp_mix_augs"))
 
     # data
     data_dir = Path("./data/")
@@ -30,7 +29,12 @@ class Config:
 
     batch_size = 1024  # 640 is use_amp
     eval_batch_size = 1024
-    num_workers = 0
+    num_workers = 4
+
+    # aug
+    mix_proba = 1.0
+    mixup_alpha = 1.0
+    cutmix_alpha = -1
 
     # net
     transformer_layers = 1
@@ -79,14 +83,18 @@ def main():
         batch_size=cfg.batch_size,
         shuffle=True,
         num_workers=cfg.num_workers,
-        collate_fn=Collator(),
+        collate_fn=Collator(
+            "train", cfg.num_labels, cfg.mix_proba, cfg.mixup_alpha, cfg.cutmix_alpha
+        ),
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=cfg.eval_batch_size,
         shuffle=False,
         num_workers=cfg.num_workers,
-        collate_fn=Collator(),
+        collate_fn=Collator(
+            "val", cfg.num_labels, cfg.mix_proba, cfg.mixup_alpha, cfg.cutmix_alpha
+        ),
     )
 
     # net = Network(
@@ -96,6 +104,7 @@ def main():
     #     hidden_dim=cfg.hidden_dim,
     #     num_labels=cfg.num_labels,
     # ).to(cfg.device)
+
     net = Network(
         input_dim=cfg.input_dim,
         hidden_dim=cfg.hidden_dim,

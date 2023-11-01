@@ -1,6 +1,8 @@
 import math
 
 import torch
+import torchvision
+from torch import Tensor
 
 
 class RandomMixup(torch.nn.Module):
@@ -38,11 +40,14 @@ class RandomMixup(torch.nn.Module):
         self.alpha = alpha
         self.inplace = inplace
 
-    def forward(self, batch: Tensor, target: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(
+        self, batch: Tensor, target: Tensor, mask: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """
         Args:
-            batch (Tensor): Float tensor of size (B, C, H, W)
+            batch (Tensor): Float tensor of size (B, seq, emb_size)
             target (Tensor): Integer tensor of size (B, )
+            mask (Tensor): Boolean tensor of size (B, seq)
 
         Returns:
             Tensor: Randomly transformed batch.
@@ -50,6 +55,7 @@ class RandomMixup(torch.nn.Module):
         if not self.inplace:
             batch = batch.clone()
             target = target.clone()
+            mask = mask.clone()
 
         if target.ndim == 1:
             target = torch.nn.functional.one_hot(
@@ -62,6 +68,7 @@ class RandomMixup(torch.nn.Module):
         # It's faster to roll the batch by one instead of shuffling it to create image pairs
         batch_rolled = batch.roll(1, 0)
         target_rolled = target.roll(1, 0)
+        mask_rolled = mask.roll(1, 0)
 
         # Implemented as on mixup paper, page 3.
         lambda_param = float(
@@ -73,7 +80,9 @@ class RandomMixup(torch.nn.Module):
         target_rolled.mul_(1.0 - lambda_param)
         target.mul_(lambda_param).add_(target_rolled)
 
-        return batch, target
+        mask = torch.logical_and(mask, mask_rolled)
+
+        return batch, target, mask
 
     def __repr__(self) -> str:
         s = (
@@ -114,11 +123,14 @@ class RandomCutmix(torch.nn.Module):
         self.alpha = alpha
         self.inplace = inplace
 
-    def forward(self, batch: Tensor, target: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(
+        self, batch: Tensor, target: Tensor, mask: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor]:
         """
         Args:
-            batch (Tensor): Float tensor of size (B, C, H, W)
+            batch (Tensor): Float tensor of size (B, seq, emb_size)
             target (Tensor): Integer tensor of size (B, )
+            mask (Tensor): Boolean tensor of size (B, seq)
 
         Returns:
             Tensor: Randomly transformed batch.
@@ -126,6 +138,7 @@ class RandomCutmix(torch.nn.Module):
         if not self.inplace:
             batch = batch.clone()
             target = target.clone()
+            mask = mask.clone()
 
         if target.ndim == 1:
             target = torch.nn.functional.one_hot(
@@ -138,12 +151,14 @@ class RandomCutmix(torch.nn.Module):
         # It's faster to roll the batch by one instead of shuffling it to create image pairs
         batch_rolled = batch.roll(1, 0)
         target_rolled = target.roll(1, 0)
+        mask_rolled = mask.roll(1, 0)
 
         # Implemented as on cutmix paper, page 12 (with minor corrections on typos).
         lambda_param = float(
             torch._sample_dirichlet(torch.tensor([self.alpha, self.alpha]))[0]
         )
-        _, H, W = torchvision.transforms.functional.get_dimensions(batch)
+        _, seq_len, emb_len = torchvision.transforms.functional.get_dimensions(batch)
+        H, W = seq_len, emb_len
 
         r_x = torch.randint(W, (1,))
         r_y = torch.randint(H, (1,))
@@ -152,9 +167,9 @@ class RandomCutmix(torch.nn.Module):
         r_w_half = int(r * W)
         r_h_half = int(r * H)
 
-        x1 = int(torch.clamp(r_x - r_w_half, min=0))
+        x1 = 0 #int(torch.clamp(r_x - r_w_half, min=0))
+        x2 = W #int(torch.clamp(r_x + r_w_half, max=W))
         y1 = int(torch.clamp(r_y - r_h_half, min=0))
-        x2 = int(torch.clamp(r_x + r_w_half, max=W))
         y2 = int(torch.clamp(r_y + r_h_half, max=H))
 
         batch[:, :, y1:y2, x1:x2] = batch_rolled[:, :, y1:y2, x1:x2]
@@ -163,7 +178,9 @@ class RandomCutmix(torch.nn.Module):
         target_rolled.mul_(1.0 - lambda_param)
         target.mul_(lambda_param).add_(target_rolled)
 
-        return batch, target
+        mask = torch.logical_and(mask, mask_rolled)
+
+        return batch, target, mask
 
     def __repr__(self) -> str:
         s = (

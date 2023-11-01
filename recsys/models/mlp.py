@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ..utils.nn_utils import init_weights
+from utils.nn_utils import init_weights
 
 
 class Network(nn.Module):
@@ -24,7 +24,7 @@ class Network(nn.Module):
         self.projector.apply(init_weights)
         self.lin.apply(init_weights)
         self.classifier.apply(init_weights)
-    
+
     def forward(self, features: torch.Tensor, mask: torch.Tensor):
         x = [self.projector(x[~m]) for x, m in zip(features, mask)]  # 768 -> 512
         x = torch.cat([v.mean(0).unsqueeze(0) for v in x], 0)
