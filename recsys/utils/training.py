@@ -41,8 +41,8 @@ def train(
                 logits = net(batch, mask)
                 loss = criterion(logits, targets)
             scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
             if cfg.clip_value is not None:
+                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.clip_value)
             scaler.step(optimizer)
             scaler.update()

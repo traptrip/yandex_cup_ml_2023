@@ -8,7 +8,7 @@ class MaskedPooling(nn.Module):
 
     def forward(self, x, mask=None):
         if mask is not None:
-            x = torch.cat([v[m].mean(0).unsqueeze(0) for v, m in zip(x, mask)])
+            x = torch.cat([v[~m].mean(0).unsqueeze(0) for v, m in zip(x, mask)])
         else:
             x = torch.mean(x, 1)
         return x

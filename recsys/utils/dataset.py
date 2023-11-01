@@ -23,11 +23,10 @@ class EmbeddingDataset(Dataset):
         self.crop_size = crop_size
         self.num_labels = num_labels
 
-        self.meta_info = pd.read_csv(self.data_dir / "metadata.csv", sep="\t")
-
         assert stage in ("train", "val", "test", "infer")
 
         if self.stage in ["train", "val", "test"]:
+            self.meta_info = pd.read_csv(self.data_dir / "metadata.csv", sep="\t")
             if "stage" in self.meta_info.columns:
                 self.meta_info = self.meta_info.loc[
                     self.meta_info.stage == stage
@@ -35,6 +34,8 @@ class EmbeddingDataset(Dataset):
             self.labels = torch.tensor(
                 self.meta_info.tags.apply(self.process_tags)
             ).float()
+        else:
+            self.meta_info = pd.read_csv(data_dir / "test.csv")
 
         self.tracks = self.meta_info.track.values
 
@@ -58,7 +59,7 @@ class EmbeddingDataset(Dataset):
         # x = (x - x.mean()) / x.std()
 
         # add padding
-        mask = torch.ones(self.crop_size).bool()
+        mask = torch.zeros(self.crop_size, dtype=torch.bool)
         x = x.permute(1, 0)
         x_len = x.shape[-1]
         if x_len > self.crop_size:
@@ -76,8 +77,8 @@ class EmbeddingDataset(Dataset):
             right = self.crop_size - x_len - left
             pad_patern = (left, right)
             x = torch.nn.functional.pad(x, pad_patern, "constant").detach()
-            mask[:left] = False
-            mask[left + x_len + right :] = False
+            mask[:left] = 1
+            mask[left + x_len + right :] = 1
         x = x.permute(1, 0)
         return x, mask
 
@@ -89,7 +90,7 @@ class EmbeddingDataset(Dataset):
             # "mask": mask,
             "track": self.tracks[idx],
         }
-        if self.labels is not None:
+        if self.stage != "infer":
             out["label"] = self.labels[idx]
         return out
 
@@ -98,22 +99,38 @@ class EmbeddingDataset(Dataset):
 
 
 class Collator:
+    def __init__(self, stage: str = "train") -> None:
+        assert stage in ("train", "test")
+        self.stage = stage
+
     def __call__(self, batch: list[dict[str, list[Union[torch.Tensor, int]]]]):
-        batch = sorted(batch, key=lambda value: len(value["features"]), reverse=True)
-        max_len = len(batch[0]["features"])
+        if self.stage == "train":
+            batch = sorted(
+                batch, key=lambda value: len(value["features"]), reverse=True
+            )
+            max_len = len(batch[0]["features"])
+        else:
+            max_len = len(max(batch, key=lambda b: len(b["features"]))["features"])
 
         features = torch.zeros(len(batch), max_len, batch[0]["features"][0].shape[0])
-        mask = torch.zeros(len(batch), max_len, dtype=torch.bool)
-        tracks = torch.zeros(len(batch))
+        mask = torch.ones(len(batch), max_len, dtype=torch.bool)
+        tracks = torch.zeros(len(batch), dtype=torch.long)
         has_label = "label" in batch[0]
         if has_label:
             labels = torch.zeros((len(batch), *batch[0]["label"].shape))
 
         for idx, item in enumerate(batch):
-            # TODO: make random start_idx
-            features[idx, : len(item["features"]), :] = item["features"]
-            mask[idx, : len(item["features"])] = 1
+            x = item["features"]
+            x_len = len(x)
+            pad_left = (
+                np.random.randint(0, max_len - x_len)
+                if max_len != x_len and self.stage == "train"
+                else 0
+            )
+            features[idx, pad_left : pad_left + x_len, :] = x
+            mask[idx, pad_left : pad_left + x_len] = 0
             tracks[idx] = item["track"]
+
             if has_label:
                 labels[idx] = item["label"]
 

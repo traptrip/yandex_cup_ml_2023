@@ -1,6 +1,7 @@
 /data/*.tar.gz
 /data/track_embeddings/
 /data/*.csv
+prediction.csv
 
 .ipynb_checkpoints/
 /_EXPERIMENTS/*
