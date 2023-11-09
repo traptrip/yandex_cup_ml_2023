@@ -1,6 +1,9 @@
 import math
+import random
+from typing import Any
 
 import torch
+import numpy as np
 import torchvision
 from torch import Tensor
 
@@ -21,7 +24,7 @@ class RandomMixup(torch.nn.Module):
     def __init__(
         self,
         num_classes: int,
-        p: float = 0.5,
+        p: float = 1.0,
         alpha: float = 1.0,
         inplace: bool = False,
     ) -> None:
@@ -113,7 +116,7 @@ class RandomCutmix(torch.nn.Module):
     def __init__(
         self,
         num_classes: int,
-        p: float = 0.5,
+        p: float = 1.0,
         alpha: float = 1.0,
         inplace: bool = False,
     ) -> None:
@@ -167,18 +170,18 @@ class RandomCutmix(torch.nn.Module):
         r_w_half = int(r * W)
         r_h_half = int(r * H)
 
-        x1 = 0 #int(torch.clamp(r_x - r_w_half, min=0))
-        x2 = W #int(torch.clamp(r_x + r_w_half, max=W))
+        x1 = 0  # int(torch.clamp(r_x - r_w_half, min=0))
+        x2 = W  # int(torch.clamp(r_x + r_w_half, max=W))
         y1 = int(torch.clamp(r_y - r_h_half, min=0))
         y2 = int(torch.clamp(r_y + r_h_half, max=H))
 
-        batch[:, :, y1:y2, x1:x2] = batch_rolled[:, :, y1:y2, x1:x2]
+        batch[:, y1:y2, x1:x2] = batch_rolled[:, y1:y2, x1:x2]
         lambda_param = float(1.0 - (x2 - x1) * (y2 - y1) / (W * H))
 
         target_rolled.mul_(1.0 - lambda_param)
         target.mul_(lambda_param).add_(target_rolled)
 
-        mask = torch.logical_and(mask, mask_rolled)
+        mask[:, y1:y2] = mask_rolled[:, y1:y2]
 
         return batch, target, mask
 
@@ -192,3 +195,19 @@ class RandomCutmix(torch.nn.Module):
             f")"
         )
         return s
+
+
+class RandomAugment:
+    def __call__(self, emb: Tensor) -> Tensor:
+        if random.random() < 0.5:
+            emb = emb.flip(0)
+
+        if random.random() < 0.5:
+            cuts = random.randint(1, 8)
+            # cuts = random.randint(1, int(len(emb) * 0.4))
+            idxs_to_cut = np.random.choice(len(emb), cuts)
+            m = torch.ones(len(emb), dtype=torch.bool)
+            m[idxs_to_cut] = False
+            emb = emb[m]
+
+        return emb

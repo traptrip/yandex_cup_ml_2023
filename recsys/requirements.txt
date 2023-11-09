@@ -8,6 +8,8 @@ hydra-colorlog==1.2.0
 pytorch-metric-learning==2.3.0
 tensorboard==2.11.2
 faiss-gpu==1.7.2
+einops==0.7.0
+iterative-stratification==0.1.7
 
 isort==5.12.0
 black==23.1.0

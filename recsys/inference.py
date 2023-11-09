@@ -9,29 +9,6 @@ from sklearn.metrics import average_precision_score
 
 from utils.dataset import EmbeddingDataset, Collator
 
-# from models.transformer_encoder import Network
-from models.mlp import Network
-
-
-class Config:
-    weights: Path = Path("_EXPERIMENTS/mlp_1/weights/best.pt")
-
-    # data
-    data_dir = Path("./data/")
-    num_labels = 256
-    crop_size = None
-
-    batch_size = 160
-    num_workers = 4
-
-    # net
-    transformer_layers = 1
-    num_heads = 8
-    input_dim = 768
-    hidden_dim = 512
-
-    device = "cuda:1"
-
 
 def predict(net, loader, device):
     net.eval()
@@ -46,9 +23,10 @@ def predict(net, loader, device):
             )
             batch = batch.to(device)
             mask = mask.to(device)
-            pred_logits = net(batch, mask)
+            _, pred_logits = net(batch, mask)
             pred_probs = torch.sigmoid(pred_logits)
             pred_probs = torch.round(pred_probs, decimals=6)
+
             predictions.append(pred_probs.cpu().numpy())
             track_idxs.append(track_ids.numpy())
     track_idxs = np.concatenate(track_idxs)
@@ -86,41 +64,29 @@ def predict(net, loader, device):
 #     return track_idxs, predictions
 
 
-def main():
-    cfg = Config()
-
+def run(cfg, net, max_crop_size, is_fixed_crop):
     test_dataset = EmbeddingDataset(
-        cfg.data_dir, cfg.num_labels, cfg.crop_size, stage="infer"
+        cfg.data_dir, cfg.meta_info, cfg.num_labels, stage="infer"
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=cfg.batch_size,
         shuffle=False,
         num_workers=cfg.num_workers,
-        collate_fn=Collator("test", cfg.num_labels),
+        collate_fn=Collator(
+            "test",
+            cfg.num_labels,
+            mix_proba=0,
+            max_crop_size=max_crop_size,
+            is_fixed_crop=is_fixed_crop,
+        ),
     )
 
-    net = Network(
-        # transformer_layers=cfg.transformer_layers,
-        # num_heads=cfg.num_heads,
-        input_dim=cfg.input_dim,
-        hidden_dim=cfg.hidden_dim,
-        num_labels=cfg.num_labels,
-    )
-    net.load_state_dict(torch.load(cfg.weights, map_location="cpu"))
     net.to(cfg.device)
 
     track_idxs, predictions = predict(net, test_dataloader, cfg.device)
-
-    print("Saving prediction")
-    predictions_df = pd.DataFrame(
-        [
-            {"track": track, "prediction": ",".join([str(p) for p in probs])}
-            for track, probs in zip(track_idxs, predictions)
-        ]
-    )
-    predictions_df.to_csv(cfg.weights.parent / "../prediction.csv", index=False)
+    return track_idxs, predictions
 
 
 if __name__ == "__main__":
-    main()
+    run()
