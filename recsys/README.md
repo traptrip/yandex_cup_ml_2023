@@ -33,7 +33,8 @@ python utils/prepare_dataset.py
 
 # Run single experiment
 1. Configure `Config` class in [main.py](./main.py)
-2. Run training
+2. Use your own `optimizer`, `criterion`, `scheduler` if needed. You can change it in main function
+3. Run training
 ```bash
 python main.py
 ```
@@ -42,7 +43,8 @@ python main.py
 
 # Run ensemble experiment
 1. Configure `Config` class in [folds_main.py](./folds_main.py)
-2. Run training
+2. Use your own `optimizer`, `criterion`, `scheduler` if needed. You can change it in main function
+3. Run training
 ```bash
 python folds_main.py
 ```

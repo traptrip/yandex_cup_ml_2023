@@ -24,6 +24,9 @@ class Config:
     data_dir = Path("./data/")
     meta_info = Path(f"./data/metadata.csv")
     num_labels = 256
+
+    # train_stage == train - use only train for training
+    # train_stage == all - train on all data
     train_stage = "train"
 
     batch_size = 104
@@ -52,7 +55,7 @@ class Config:
 
     max_crop = [None]
     is_fixed_crop = [False]
-    n_epochs = [1]
+    n_epochs = [2]
 
     label_smoothing = 0.1
 
@@ -162,10 +165,8 @@ if __name__ == "__main__":
             criterion = {
                 "classification": {
                     "w": 1.0,
-                    "f": losses.WeightedBCEWithLogitsLoss(
-                        **cfg.cls_loss_args["weighted_bce"]
-                    ),
-                    # "f": losses.ResampleLoss(**cfg.cls_loss_args["resample_args"]),
+                    # "f": losses.WeightedBCEWithLogitsLoss(**cfg.cls_loss_args["weighted_bce"]),
+                    "f": losses.ResampleLoss(**cfg.cls_loss_args["resample_args"]),
                 },
                 "embedding": None
                 # "embedding": {

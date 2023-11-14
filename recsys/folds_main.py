@@ -31,6 +31,9 @@ class Config:
     data_dir = Path("./data/")
     meta_info = Path("./data/metadata.csv")
     num_labels = 256
+
+    # train_stage == train - use only train for training
+    # train_stage == all - train on all data
     train_stage = "train"
 
     batch_size = 128
