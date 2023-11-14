@@ -1,9 +1,9 @@
-import torch
 import numpy as np
+import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from utils.dataset import EmbeddingDataset, Collator
+from utils.dataset import Collator, EmbeddingDataset
 
 
 def predict(net, loader, device):

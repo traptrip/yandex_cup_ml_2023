@@ -4,7 +4,9 @@ from pathlib import Path
 def get_exp_name(log_dir: Path):
     new_exp_name = log_dir.name
     prev_exps = [exp.name for exp in log_dir.parent.iterdir()]
-    prev_exps = [exp for exp in prev_exps if "_".join(exp.split("_")[:-1]) == new_exp_name]
+    prev_exps = [
+        exp for exp in prev_exps if "_".join(exp.split("_")[:-1]) == new_exp_name
+    ]
     prev_exps_nums = [
         int(exp.split("_")[-1])
         for exp in prev_exps

@@ -1,15 +1,14 @@
 from functools import partial
-from typing import Callable, Union, Optional
+from typing import Callable, Optional, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-
-
-from .pooling import MaskedPooling, AttentionPooling
-from .utils import RMSNorm
 from utils.nn_utils import init_weights
+
+from .pooling import AttentionPooling, MaskedPooling
+from .utils import RMSNorm
 
 
 class TransformerEncoderLayer(nn.Module):

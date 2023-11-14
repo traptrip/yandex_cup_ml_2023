@@ -1,9 +1,8 @@
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
-from utils.dataset import EmbeddingDataset, Collator
-from utils.training import train
 from utils.augmentations import RandomAugment
+from utils.dataset import Collator, EmbeddingDataset
+from utils.training import train
 
 
 def run(

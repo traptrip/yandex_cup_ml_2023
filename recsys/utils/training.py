@@ -1,7 +1,7 @@
-import torch
 import numpy as np
-from tqdm.auto import tqdm
+import torch
 from sklearn.metrics import average_precision_score
+from tqdm.auto import tqdm
 
 
 def train(

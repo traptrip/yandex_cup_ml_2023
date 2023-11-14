@@ -2,9 +2,9 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-
-from .pooling import MaskedPooling, AttentionPooling
 from utils.nn_utils import init_weights
+
+from .pooling import AttentionPooling, MaskedPooling
 
 
 class Network(nn.Module):

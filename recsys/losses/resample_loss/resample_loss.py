@@ -10,13 +10,13 @@ https://github.com/wutong16/DistributionBalancedLoss
 import pickle
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 
 from .cross_entropy_loss import (
-    cross_entropy,
     binary_cross_entropy,
+    cross_entropy,
     partial_cross_entropy,
 )
 

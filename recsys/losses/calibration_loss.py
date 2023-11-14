@@ -1,11 +1,10 @@
 import torch
-from pytorch_metric_learning import losses, distances
+from pytorch_metric_learning import distances, losses
 from pytorch_metric_learning.utils import common_functions as c_f
 from pytorch_metric_learning.utils import loss_and_miner_utils as lmu
 
 
 class CalibrationLoss(losses.ContrastiveLoss):
-    
     def get_default_distance(self):
         return distances.DotProductSimilarity()
 

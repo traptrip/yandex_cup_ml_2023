@@ -1,15 +1,14 @@
-import random
 import json
+import random
 from pathlib import Path
 
-import torch
-import torchvision
 import numpy as np
 import pandas as pd
-from torch.utils.data import Dataset
+import torch
 from sklearn import preprocessing
+from torch.utils.data import Dataset
 
-from .augmentations import RandomCutmix, RandomMixup
+from .augmentations import RandomMixup
 
 
 class EmbeddingDataset(Dataset):

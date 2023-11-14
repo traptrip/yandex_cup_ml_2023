@@ -1,7 +1,7 @@
 import torch.nn as nn
 
-from .smooth_rank_ap import SupAP
 from .calibration_loss import CalibrationLoss
+from .smooth_rank_ap import SupAP
 
 
 class RoadmapLoss(nn.Module):
@@ -20,11 +20,19 @@ class RoadmapLoss(nn.Module):
         offset: 1.44
         delta: 0.05
     """
-    def __init__(self, weights: list[float], calibration_args: dict[str, float], sup_ap_args: dict[str, float]) -> None:
+
+    def __init__(
+        self,
+        weights: list[float],
+        calibration_args: dict[str, float],
+        sup_ap_args: dict[str, float],
+    ) -> None:
         super().__init__()
         self.w = weights
         self.contrastive_loss = CalibrationLoss(**calibration_args)
         self.sup_ap_loss = SupAP(**sup_ap_args)
 
     def forward(self, embeddings, targets):
-        return self.w[0] * self.contrastive_loss(embeddings, targets) + self.w[1] * self.sup_ap_loss(embeddings, targets)
+        return self.w[0] * self.contrastive_loss(embeddings, targets) + self.w[
+            1
+        ] * self.sup_ap_loss(embeddings, targets)

@@ -9,12 +9,13 @@ https://github.com/wutong16/DistributionBalancedLoss
 """
 
 from __future__ import absolute_import
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .utils import weight_reduce_loss
-import numpy as np
 
 
 def _squeeze_binary_labels(label):
