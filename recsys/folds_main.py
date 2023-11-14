@@ -14,11 +14,9 @@ from utils.log_utils import get_exp_name
 from optimizers.lion import Lion
 from utils.dataset import EmbeddingDataset, Collator
 from torch.utils.data import DataLoader
-
-from models.transformer_encoder import Network
-
-# from models.transformer_encoder_rms import Network
-# from models.mlp import Network
+from models.transformer_encoder import Network as TransformerNetwork
+from models.transformer_encoder_rms import Network as TransformerRMSNetwork
+from models.mlp import Network as MLPNetwork
 
 
 N_FOLDS = 12
@@ -44,6 +42,7 @@ class Config:
     mixup_alpha = 1.0
 
     # net
+    net_name = "transformer"  # transformer transformer_rms mlp
     transformer_layers = 3
     num_heads = 8
     input_dim = 768
@@ -113,6 +112,41 @@ def log_current_state(cfg):
             shutil.copy(src, cfg.logs_dir / src.name)
 
 
+def get_network(cfg: Config):
+    if cfg.net_name == "transformer":
+        net = TransformerNetwork(
+            transformer_layers=cfg.transformer_layers,
+            num_heads=cfg.num_heads,
+            input_dim=cfg.input_dim,
+            hidden_dim=cfg.hidden_dim,
+            num_labels=cfg.num_labels,
+            pooling=cfg.pooling,
+            dim_feedforward=cfg.dim_feedforward,
+            dropout=cfg.dropout,
+        )
+    elif cfg.net_name == "transformer_rms":
+        net = TransformerRMSNetwork(
+            transformer_layers=cfg.transformer_layers,
+            num_heads=cfg.num_heads,
+            input_dim=cfg.input_dim,
+            hidden_dim=cfg.hidden_dim,
+            num_labels=cfg.num_labels,
+            pooling=cfg.pooling,
+            dim_feedforward=cfg.dim_feedforward,
+            dropout=cfg.dropout,
+        )
+    elif cfg.net_name == "mlp":
+        net = MLPNetwork(
+            input_dim=cfg.input_dim,
+            hidden_dim=cfg.hidden_dim,
+            num_labels=cfg.num_labels,
+        )
+    else:
+        raise ValueError(f"Network {cfg.net_name} is not implemented!")
+
+    return net
+
+
 if __name__ == "__main__":
     cfg = Config()
     print("Logging dir:", cfg.logs_dir)
@@ -132,23 +166,14 @@ if __name__ == "__main__":
     folds = list(kf.split(cfg.meta_info, y))
 
     # Train folds
-    for n_fold, (train_index, test_index) in enumerate(folds[0:], 0):
+    for n_fold, (train_index, test_index) in enumerate(folds):
         print(f"FOLD: {n_fold}")
         cfg.logs_dir = cfg.logs_dir / f"fold{n_fold}"
         cfg.fold = n_fold
         cfg.meta_info["stage"] = "train"
         cfg.meta_info.loc[test_index, "stage"] = "val"
 
-        net = Network(
-            transformer_layers=cfg.transformer_layers,
-            num_heads=cfg.num_heads,
-            input_dim=cfg.input_dim,
-            hidden_dim=cfg.hidden_dim,
-            num_labels=cfg.num_labels,
-            pooling=cfg.pooling,
-            dim_feedforward=cfg.dim_feedforward,
-            dropout=cfg.dropout,
-        )
+        net = get_network(cfg)
 
         if isinstance(cfg.n_epochs, int):
             cfg.n_epochs //= len(cfg.max_crop)
@@ -222,16 +247,7 @@ if __name__ == "__main__":
     )
     for i in range(N_FOLDS):
         print(f"Fold #{i}")
-        net = Network(
-            transformer_layers=cfg.transformer_layers,
-            num_heads=cfg.num_heads,
-            input_dim=cfg.input_dim,
-            hidden_dim=cfg.hidden_dim,
-            num_labels=cfg.num_labels,
-            pooling=cfg.pooling,
-            dim_feedforward=cfg.dim_feedforward,
-            dropout=cfg.dropout,
-        )
+        net = get_network(cfg)
         net.load_state_dict(
             torch.load(
                 cfg.logs_dir / f"fold{i}" / "weights/best.pt", map_location="cpu"
