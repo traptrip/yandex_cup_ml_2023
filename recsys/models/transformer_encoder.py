@@ -55,6 +55,7 @@ class Network(nn.Module):
         self.classifier.apply(partial(init_weights, dtype="xavier"))
 
     def forward(self, x, mask=None):
+        # x = self.transformer(x)  # use w/o mask if is_fixed_crop=True
         x = self.transformer(x, src_key_padding_mask=mask)
         x = self.pooling(x, mask).squeeze()
         x = self.projector(x)
