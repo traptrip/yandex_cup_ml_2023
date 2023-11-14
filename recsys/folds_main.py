@@ -6,47 +6,27 @@ import torch
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import KFold
-from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 
 import losses
 import train
 import inference
 from utils.log_utils import get_exp_name
 from optimizers.lion import Lion
-
-# from models.mlp import Network
+from utils.dataset import EmbeddingDataset, Collator
+from torch.utils.data import DataLoader
 
 from models.transformer_encoder import Network
 
+# from models.transformer_encoder_rms import Network
+# from models.mlp import Network
 
-"""
-TODO:
-3. CNN1D
-8. Emformer
-0. gradient accumulation 
-1. Autoencoder pretrain
-7. MultiSimilarityLoss
-3. NTXentLoss
-9. SigLIP
-2. SupAP pretraining (large batch size)
 
-9. attention pooling
-6. Увеличивать размер max_len по ходу обучения (curriculum learning)
-4. Lion optimizer (можно взять больше батч)
-10. Нормировать фичи
-5. Train on Full dataset
-
-"""
-N_FOLDS = 10
+N_FOLDS = 12
 
 
 class Config:
     # logging
-    logs_dir: Path = get_exp_name(
-        Path(
-            f"_EXPERIMENTS/{N_FOLDS}folds__transformer__attn_pooling__flip_cut_aug__lion__resample"
-        )
-    )
+    logs_dir: Path = get_exp_name(Path(f"_EXPERIMENTS/{N_FOLDS}folds__transformer"))
 
     # data
     fold = None
@@ -55,14 +35,13 @@ class Config:
     num_labels = 256
     train_stage = "train"
 
-    batch_size = 96
-    eval_batch_size = 96
+    batch_size = 128
+    eval_batch_size = 128
     num_workers = 4
 
     # aug
     mix_proba = 1.0
     mixup_alpha = 1.0
-    cutmix_alpha = 0.0  # TODO: bug?
 
     # net
     transformer_layers = 3
@@ -79,11 +58,13 @@ class Config:
     lr = 3e-5  # lion: 3e-5  adamw: 1e-4
     min_lr = 1e-8
 
-    max_crop = [None]
+    max_crop = [120]
     is_fixed_crop = [False]
     n_epochs = [40]
 
-    label_smoothing = 0.1
+    maxperfold = 0  # 4 #  use only for inference
+
+    label_smoothing = 0.05
 
     cls_loss_args = {
         "resample_args": dict(
@@ -122,6 +103,8 @@ def log_current_state(cfg):
         cur_dir / "inference.py",
         cur_dir / "utils",
         cur_dir / "models",
+        cur_dir / "losses",
+        cur_dir / "optimizers",
     ]
     for src in srcs:
         if src.is_dir():
@@ -135,7 +118,7 @@ if __name__ == "__main__":
     print("Logging dir:", cfg.logs_dir)
     log_current_state(cfg)
 
-    # create folds
+    # Create folds
     cfg.meta_info = pd.read_csv(cfg.data_dir / "train.csv")
 
     def one_hot_tags(tags):
@@ -145,11 +128,11 @@ if __name__ == "__main__":
         return one_hot
 
     y = np.stack(cfg.meta_info.tags.apply(one_hot_tags))
+    kf = KFold(n_splits=N_FOLDS)
+    folds = list(kf.split(cfg.meta_info, y))
 
-    # kf = KFold(n_splits=N_FOLDS)
-    kf = MultilabelStratifiedKFold(n_splits=N_FOLDS)
-    folds = kf.split(cfg.meta_info, y)
-    for n_fold, (train_index, test_index) in enumerate(folds):
+    # Train folds
+    for n_fold, (train_index, test_index) in enumerate(folds[0:], 0):
         print(f"FOLD: {n_fold}")
         cfg.logs_dir = cfg.logs_dir / f"fold{n_fold}"
         cfg.fold = n_fold
@@ -180,7 +163,8 @@ if __name__ == "__main__":
                 "classification": {
                     "w": 1.0,
                     "f": losses.ResampleLoss(**cfg.cls_loss_args["resample_args"]),
-                },  # {"w": 1.0, "f": torch.nn.BCEWithLogitsLoss()},
+                    # "f": torch.nn.BCEWithLogitsLoss(),
+                },
                 "embedding": None,
             }
 
@@ -215,11 +199,29 @@ if __name__ == "__main__":
         gc.collect()
         cfg.logs_dir = cfg.logs_dir.parent
 
-    # INFER
+    # Inference
     print("\n\nINFERENCE")
     cfg.meta_info = Path("./data/test.csv")
     predictions = []
+
+    test_dataset = EmbeddingDataset(
+        cfg.data_dir, cfg.meta_info, cfg.num_labels, stage="infer"
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=cfg.eval_batch_size,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        collate_fn=Collator(
+            "test",
+            cfg.num_labels,
+            mix_proba=0,
+            max_crop_size=cfg.max_crop[-1],
+            is_fixed_crop=cfg.is_fixed_crop[-1],
+        ),
+    )
     for i in range(N_FOLDS):
+        print(f"Fold #{i}")
         net = Network(
             transformer_layers=cfg.transformer_layers,
             num_heads=cfg.num_heads,
@@ -227,16 +229,29 @@ if __name__ == "__main__":
             hidden_dim=cfg.hidden_dim,
             num_labels=cfg.num_labels,
             pooling=cfg.pooling,
+            dim_feedforward=cfg.dim_feedforward,
+            dropout=cfg.dropout,
         )
         net.load_state_dict(
             torch.load(
-                cfg.logs_dir / f"fold{i}" / "weights/last.pt", map_location="cpu"
+                cfg.logs_dir / f"fold{i}" / "weights/best.pt", map_location="cpu"
             )
         )
-        track_idxs, pred = inference.run(
-            cfg, net, cfg.max_crop[-1], cfg.is_fixed_crop[-1]
-        )
-        predictions.append(pred)
+
+        if cfg.maxperfold > 0:
+            preds = []
+            for _ in range(cfg.maxperfold):
+                track_idxs, pred = inference.run(
+                    cfg, net, cfg.max_crop[-1], cfg.is_fixed_crop[-1], test_dataloader
+                )
+                preds.append(pred)
+            preds = np.max(preds, axis=0)
+        else:
+            track_idxs, preds = inference.run(
+                cfg, net, cfg.max_crop[-1], cfg.is_fixed_crop[-1], test_dataloader
+            )
+
+        predictions.append(preds)
 
     predictions = np.mean(predictions, axis=0)
 
@@ -247,4 +262,4 @@ if __name__ == "__main__":
             for track, probs in zip(track_idxs, predictions)
         ]
     )
-    predictions_df.to_csv(cfg.logs_dir / "prediction.csv", index=False)
+    predictions_df.to_csv(cfg.logs_dir / f"prediction.csv", index=False)

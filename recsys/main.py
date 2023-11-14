@@ -10,79 +10,31 @@ import train
 import inference
 from utils.log_utils import get_exp_name
 from optimizers.lion import Lion
+
 from models.transformer_encoder import Network
 
 # from models.mlp import Network
 # from models.cnn1d import Network
 
 
-"""
-TODO:
-8. Emformer
-0. gradient accumulation 
-1. Autoencoder pretrain
-7. MultiSimilarityLoss
-3. NTXentLoss
-- RMSNorm в трансформере
-
-- distribution postprocessing
-- Hamming Loss
-- Focal Loss
-- weighted BCE с обучаемыми весами
-- weighted BCE https://stackoverflow.com/questions/67730325/using-weights-in-crossentropyloss-and-bceloss-pytorch
-- https://github.com/ShadeAlsha/LTR-weight-balancing/blob/master/demo2_second-stage-training.ipynb
-- https://github.com/kaidic/LDAM-DRW/blob/master/losses.py
-- https://github.com/Vanint/Awesome-LongTailed-Learning/tree/main/Main-codebase/loss
-
-- сделать undersampling, обучиться, потом сделать fine tune на всех данных
-- бустинг из моделей (одна модель учится на ошибке предыдущей)
-- 256 КЛАССИФИКАТОРОВ ПО ОДНОМУ НА КАЖДЫЙ КЛАСС :))))))
-- gaussian blur на эмбеддинги :)
-
-
-- прогнать фичи через преобразование фурье (а почему бы и нет)
-- обучить две модели: одну на многочисленных таргетах, другую на хвосте
-- ResampleLoss
-- аугментация разворота фичей
-- cutout
-9. attention pooling
-6. Увеличивать размер max_len по ходу обучения (curriculum learning)
-4. Lion optimizer (можно взять больше батч)
-10. Нормировать фичи
-5. Train on Full dataset
-3. CNN1D
-9. SigLIP
-2. SupAP pretraining (large batch size)
-- увеличить weight decay
-
-"""
-
-SAMPLE = "tail50_"
-
-
 class Config:
     # logging
-    logs_dir: Path = get_exp_name(
-        Path(
-            f"_EXPERIMENTS/{SAMPLE}_transformer__attn_pooling__flip_cut_aug__lion__weighted_bce"
-        )
-    )
+    logs_dir: Path = get_exp_name(Path(f"_EXPERIMENTS/transformer"))
 
     # data
     fold = None
     data_dir = Path("./data/")
-    meta_info = Path(f"./data/{SAMPLE}metadata.csv")
-    num_labels = 206  # 256
+    meta_info = Path(f"./data/metadata.csv")
+    num_labels = 256
     train_stage = "train"
 
-    batch_size = 104  # 104 128
+    batch_size = 104
     eval_batch_size = 104
     num_workers = 4
 
     # aug
     mix_proba = 1.0
     mixup_alpha = 1.0
-    cutmix_alpha = 0.0  # TODO: bug?
 
     # net
     transformer_layers = 3
@@ -93,15 +45,11 @@ class Config:
     hidden_dim = 512
     pooling = "attention"
 
-    device = "cuda:1"
+    device = "cuda:0"
     use_amp = True
     clip_value = 1
-    lr = 3e-5  # 3e-5  # lion: 3e-5  adamw: 1e-4
+    lr = 3e-5  # lion: 3e-5  adamw: 1e-4
     min_lr = 1e-8
-
-    # max_crop = [30, 80, None]
-    # is_fixed_crop = [False, False, False]
-    # n_epochs = [20, 10, 10]
 
     max_crop = [None]
     is_fixed_crop = [False]
@@ -117,11 +65,11 @@ class Config:
             logit_reg=dict(neg_scale=2.0, init_bias=0.05),
             map_param=dict(alpha=0.1, beta=10.0, gamma=0.2),
             loss_weight=1.0,
-            device="cuda:1",
+            device="cuda:0",
         ),
         "weighted_bce": dict(
-            device="cuda:1",
-            weights=torch.load(f"./data/{SAMPLE}bce_class_weights.pth").to(device),
+            device="cuda:0",
+            weights=torch.load(f"./data/bce_class_weights.pth").to(device),
         ),
     }
 
@@ -149,6 +97,8 @@ def log_current_state(cfg):
         cur_dir / "inference.py",
         cur_dir / "utils",
         cur_dir / "models",
+        cur_dir / "losses",
+        cur_dir / "optimizers",
     ]
     for src in srcs:
         if src.is_dir():
@@ -190,11 +140,11 @@ if __name__ == "__main__":
                         **cfg.cls_loss_args["weighted_bce"]
                     ),
                     # "f": losses.ResampleLoss(**cfg.cls_loss_args["resample_args"]),
-                },  # torch.nn.BCEWithLogitsLoss()},
+                },
                 "embedding": None
                 # "embedding": {
-                #     "w": 0.0,
-                #     "f": losses.CalibrationLoss(**cfg.emb_loss_args["calibration_args"]),
+                #     "w": 1.0,
+                #     "f": losses.RoadmapLoss(**cfg.emb_loss_args),
                 # },
             }
 
