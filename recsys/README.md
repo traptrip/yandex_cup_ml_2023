@@ -60,8 +60,11 @@ python main.py
 ```bash
 python folds_main.py
 ```
-
 > All artifacts (logs, weights, files) will be saved in `Config.logs_dir`
+
+# Create final submission (Ensemble of ensembles? `:)`)
+- Prepare experiments with model weights in `_EXPERIMENTS` directory
+- Run [notebooks/final_submission.ipynb](notebooks/final_submission.ipynb)
 
 # Tensorboard training/validation results analysis
 ```bash

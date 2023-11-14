@@ -13,3 +13,4 @@ prediction.csv
 catboost_info/
 
 _EXPERIMENTS*/*/*
+*.csv
