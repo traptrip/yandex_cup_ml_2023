@@ -105,8 +105,8 @@ class Collator:
         self,
         stage: str = "train",
         num_labels: int = 256,
-        mix_proba: float = 1.0,
-        mixup_alpha: float = 1.0,
+        mix_proba: float = 0.0,
+        mixup_alpha: float = 0.0,
         max_crop_size: int = None,
         is_fixed_crop: bool = False,
     ) -> None:
