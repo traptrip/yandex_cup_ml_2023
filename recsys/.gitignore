@@ -10,5 +10,5 @@
 prediction.csv
 
 .ipynb_checkpoints/
-/_EXPERIMENTS/*
+/_EXPERIMENTS*/*
 catboost_info/
