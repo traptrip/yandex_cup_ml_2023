@@ -1,18 +1,18 @@
 # Yandex Cup 2023 - ML: RecSys
 > Python 3.10.12
 
-**Ledearboard**: 3rd place \
-**Public score**: 0.3066	\
-**Private score**: 0.3110
+![yandex_recsys_logo](./assets/recsys_logo.png)
+
+**Ledearboard**: *3rd place* \
+**Public score**: *0.3066*	\
+**Private score**: *0.3110*
 
 [Task description](https://contest.yandex.com/contest/54251/problems/ ): \
 Predict a music tags probabilities. Tags quantity is `256`.
 Each track is described by embeddings of dimension (N, 768), where N depends on the track length.
 The main testing metric is [Average Precision](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html).
 
-<img width="800" alt="image" src="https://github.com/traptrip/yandex_cup_ml_2023/blob/main/recsys/assets/leaderboard.png">
-
-
+![yandex_recsys_logo](./assets/leaderboard.png)
 
 # Download data 
 ```
