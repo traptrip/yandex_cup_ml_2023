@@ -105,10 +105,9 @@ class Collator:
         self,
         stage: str = "train",
         num_labels: int = 256,
-        mix_proba: float = 0.5,
-        mixup_alpha: float = 0.0,
-        cutmix_alpha: float = 0.0,
-        max_crop_size: int | None = None,
+        mix_proba: float = 1.0,
+        mixup_alpha: float = 1.0,
+        max_crop_size: int = None,
         is_fixed_crop: bool = False,
     ) -> None:
         assert stage in ("train", "val", "test")
@@ -116,18 +115,13 @@ class Collator:
         self.max_crop_size = max_crop_size
         self.is_fixed_crop = is_fixed_crop
 
-        # mixup & cutmix augmentations
+        # mixup augmentations
         self.mix_transform = None
         if (stage == "train") and (random.random() < mix_proba):
-            mix_transforms = []
             if mixup_alpha > 0:
-                mix_transforms.append(RandomMixup(num_labels, alpha=mixup_alpha))
-            if cutmix_alpha > 0:
-                mix_transforms.append(RandomCutmix(num_labels, alpha=cutmix_alpha))
+                self.mix_transform = RandomMixup(num_labels, alpha=mixup_alpha)
 
-            self.mix_transform = torchvision.transforms.RandomChoice(mix_transforms)
-
-    def __call__(self, batch: list[dict[str, list[torch.Tensor | int]]]):
+    def __call__(self, batch):
         # sort by seq len
         if self.stage == "train":
             batch = sorted(
@@ -152,18 +146,39 @@ class Collator:
         has_label = "label" in batch[0]
         if has_label:
             labels = torch.zeros((len(batch), *batch[0]["label"].shape))
-            # one_label = torch.zeros(len(batch))
 
         for idx, item in enumerate(batch):
             x = item["features"]
             x_len = len(x)
 
+            # cut mix
+            do_cutmix = random.random() < 0.5 and self.stage == "train"
+            if do_cutmix:
+                idx_rolled = (idx + 1) % len(batch)
+                x_rolled = batch[idx_rolled]["features"]
+                x_rolled_len = len(x_rolled)
+
+                seq_len = min(x_len, x_rolled_len)
+
+                crop_part = int(seq_len * random.random() * 0.5)
+                start1 = random.randint(0, x_len - crop_part)
+                end1 = start1 + crop_part
+
+                start2 = random.randint(0, x_rolled_len - crop_part)
+                end2 = start2 + crop_part
+
+                x[start1:end1] = x_rolled[start2:end2]
+
             if x_len > max_len:
-                start = np.random.randint(0, x_len - max_len)
+                start = (
+                    np.random.randint(0, x_len - max_len)
+                    if self.stage == "train"
+                    else 0
+                )
                 x = x[start : start + max_len]
                 x_len = max_len
 
-            # add padding
+            # padding
             pad_left = (
                 np.random.randint(0, max_len - x_len)
                 if max_len != x_len and self.stage == "train"
@@ -176,9 +191,17 @@ class Collator:
 
             if has_label:
                 labels[idx] = item["label"]
-                # one_label[idx] = item["one_label"]
+                if do_cutmix:
+                    labels[idx] = torch.logical_or(
+                        labels[idx], batch[idx_rolled]["label"]
+                    )
 
-        if has_label and self.mix_transform and (self.stage == "train"):
+        if (
+            has_label
+            and not do_cutmix
+            and self.mix_transform
+            and (self.stage == "train")
+        ):
             features, labels, mask = self.mix_transform(features, labels, mask)
 
         out = {
@@ -188,6 +211,5 @@ class Collator:
         }
         if has_label:
             out["label"] = labels
-            # out["one_label"] = one_label
 
         return out
