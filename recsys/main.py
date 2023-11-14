@@ -52,7 +52,7 @@ class Config:
 
     max_crop = [None]
     is_fixed_crop = [False]
-    n_epochs = [35]
+    n_epochs = [1]
 
     label_smoothing = 0.1
 
