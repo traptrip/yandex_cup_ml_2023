@@ -114,7 +114,7 @@ tensorboard --logdir _EXPERIMENTS/
 - CosineAnnealingLR (eta_min=1e-8, T_max=num_epochs)
 
 **Ансамблирование**
-Почти все модели обучались на фолдах. Потом лучшие на public блендились в один сабмит
+- Почти все модели обучались на фолдах. Потом лучшие на public блендились в один сабмит
 
 ### Hardware
 - Intel(R) Core(TM) i5-6600K CPU @ 3.50GHz
