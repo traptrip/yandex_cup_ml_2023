@@ -10,7 +10,7 @@ Predict a music tags probabilities. Tags quantity is `256`.
 Each track is described by embeddings of dimension (N, 768), where N depends on the track length.
 The main testing metric is [Average Precision](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html).
 
-<img width="618" alt="image" src="https://github.com/traptrip/yandex_cup_ml_2023/blob/main/recsys/assets/leaderboard.png">
+<img width="800" alt="image" src="https://github.com/traptrip/yandex_cup_ml_2023/blob/main/recsys/assets/leaderboard.png">
 
 
 
