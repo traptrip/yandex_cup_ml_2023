@@ -37,15 +37,12 @@ def train(
                 data["mask"],
                 data["label"],
             )
-            # one_label = data["one_label"]
             targets = targets * (1 - label_smoothing) + (label_smoothing / 2)
 
-            with torch.cuda.amp.autocast(
-                enabled=cfg.use_amp
-            ), torch.backends.cuda.sdp_kernel(enable_flash=cfg.device == "cuda:0"):
+            with torch.cuda.amp.autocast(enabled=cfg.use_amp):
                 emb, logits = net(batch, mask)
 
-                bce_loss = (
+                cls_loss = (
                     criterion["classification"]["w"]
                     * criterion["classification"]["f"](logits, targets)
                     if criterion["classification"]
@@ -57,7 +54,7 @@ def train(
                     if criterion["embedding"]
                     else 0
                 )
-                loss = bce_loss + emb_loss
+                loss = cls_loss + emb_loss
 
             scaler.scale(loss).backward()
             if cfg.clip_value is not None:
@@ -93,9 +90,7 @@ def train(
         val_preds = []
         for data in (pbar := tqdm(val_dataloader)):
             with torch.no_grad():
-                with torch.cuda.amp.autocast(
-                    enabled=cfg.use_amp
-                ), torch.backends.cuda.sdp_kernel(enable_flash=cfg.device == "cuda:0"):
+                with torch.cuda.amp.autocast(enabled=cfg.use_amp):
                     for key in data:
                         data[key] = data[key].to(cfg.device)
                     track_ids, batch, mask, targets = (
@@ -104,11 +99,10 @@ def train(
                         data["mask"],
                         data["label"],
                     )
-                    # one_label = data["one_label"]
 
                     emb, logits = net(batch, mask)
 
-                    bce_loss = (
+                    cls_loss = (
                         criterion["classification"]["w"]
                         * criterion["classification"]["f"](logits, targets)
                         if criterion["classification"]
@@ -120,7 +114,7 @@ def train(
                         if criterion["embedding"]
                         else 0
                     )
-                    loss = bce_loss + emb_loss
+                    loss = cls_loss + emb_loss
 
                 val_loss = (
                     loss.item()
