@@ -89,7 +89,8 @@ tensorboard --logdir _EXPERIMENTS/
 
 [папка с весами моделей](https://disk.yandex.ru/d/qWprntnoDrZbPA) 
 
-![neural_networks](./assets/networks.png)
+<!-- ![neural_networks](./assets/networks.png) -->
+<img width="600" alt="image" src="./assets/networks.png">
 
 ### Данные
 - mixup (сложение эмбеддингов двух треков с разными весами)
