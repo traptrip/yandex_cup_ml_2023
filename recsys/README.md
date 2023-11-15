@@ -73,7 +73,7 @@ tensorboard --logdir _EXPERIMENTS/
 
 # My final submission 
 
-### Модель 
+### Модели
 Итоговое решение состоит из 7 трансформеров и 1 MLP с различными параметрами обучения:
 Лучшие модели (ансамбль дает 0.3+):
 - [public=0.2996] Transformer (layers=3, heads=8, max_crop=120) + Attention Pooling + FF
@@ -86,6 +86,8 @@ tensorboard --logdir _EXPERIMENTS/
 - [public=0.2946] Transformer w/ RMSNorm + AP + FF
 - [public=0.2832] Transformer + AP + FF (weighted_bce_loss)
 - [public=0.24] Vector projector + AP + FF (MLP из baseline с измененным pooling)
+
+[папка с весами моделей](https://disk.yandex.ru/d/qWprntnoDrZbPA) 
 
 ![neural_networks](./assets/networks.png)
 
